@@ -59,7 +59,11 @@ exports.handler = async function (event, context) {
         console.error("Error calling Gemini API:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: "Failed to generate explanation" }),
+            body: JSON.stringify({
+                error: "Failed to generate explanation",
+                details: error.message,
+                stack: error.stack
+            }),
         };
     }
 };
