@@ -41,7 +41,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error:', error);
-            alert(`Error: ${error.message}`);
+
+            // Show error in UI persistently
+            resultArea.classList.remove('hidden');
+            explanationContent.innerHTML = `
+                <div style="color: #f87171; background: rgba(127, 29, 29, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid #f87171;">
+                    <h3 style="margin-bottom: 0.5rem; color: #fecaca;">⚠️ Error</h3>
+                    <p>${error.message}</p>
+                </div>
+            `;
+            resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
         } finally {
             setLoading(false);
         }
