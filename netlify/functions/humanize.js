@@ -73,10 +73,12 @@ exports.handler = async function (event, context) {
                 ${code}
                 \`\`\`
                 
-                Constraint: Be extremely CONCISE. 
-                - Limit to 2-3 sentences max.
-                - No "This code does..." or "Here is the explanation".
-                - Focus on the *logic* and *outcome*.
+                Constraint: Match the length of the explanation to the COMPLEXITY of the code.
+                - IF SIMPLE (1-5 lines, basic logic): Be extremely concise (1-2 sentences). No fluff.
+                - IF MODERATE (functions, loops, conditions): Provide a brief summary + 1-2 bullet points for key logic.
+                - IF COMPLEX (classes, algorithms, async): Provide a high-level summary followed by a numbered step-by-step breakdown.
+                
+                Avoid conversational filler ("Here is the explanation..."). Start directly with the technical explanation.
             `;
         }
 
