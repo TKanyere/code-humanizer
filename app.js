@@ -8,12 +8,14 @@ document.addEventListener('DOMContentLoaded', () => {
     humanizeBtn.addEventListener('click', async () => {
         const code = codeInput.value.trim();
         if (!code) {
-            alert('Please paste some code first!');
+            alert('Please paste code or a GitHub URL!');
             return;
         }
 
         // UI Loading State
         setLoading(true);
+        const isUrl = code.includes('github.com');
+        humanizeBtn.querySelector('span:first-child').textContent = isUrl ? 'Analyzing Repo...' : 'Analyzing Code...';
 
         try {
             const response = await fetch('/.netlify/functions/humanize', {

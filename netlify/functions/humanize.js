@@ -30,18 +30,55 @@ exports.handler = async function (event, context) {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-        const prompt = `
-      You are an expert coding instructor. 
-      Please explain the following ${language ? language + " " : ""}code snippet in plain, easy-to-understand English.
-      Break it down step-by-step if it's complex.
-      
-      Code:
-      \`\`\`
-      ${code}
-      \`\`\`
-      
-      Explanation:
-    `;
+        let prompt = "";
+
+        // Check if input is a GitHub URL
+        const githubRegex = /github\.com\/([^\/]+)\/([^\/]+)/;
+        const match = code.match(githubRegex);
+
+        if (match) {
+            const owner = match[1];
+            const repo = match[2];
+
+            // Try to fetch README.md (common names)
+            const readmeUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/README.md`;
+            const readmeRes = await fetch(readmeUrl);
+
+            let context = "";
+            if (readmeRes.ok) {
+                const readmeText = await readmeRes.text();
+                context = `Repository README Content:\n${readmeText.substring(0, 5000)}`; // limit context
+            } else {
+                context = "Could not fetch README. Please analyze based on the repository name context.";
+            }
+
+            prompt = `
+                You are a concise technical summarizer.
+                Analyze this GitHub repository: ${owner}/${repo}.
+                
+                context:
+                ${context}
+
+                Task: Provide a BRIEF, high-level summary of what this project does.
+                Constraint: Maximum 3 sentences. No conversational filler ("Here is the summary..."). Direct answer only.
+            `;
+        } else {
+            // Standard Code Explanation
+            prompt = `
+                You are a senior developer doing a code review.
+                Explain this ${language ? language + " " : ""}code snippet.
+                
+                Code:
+                \`\`\`
+                ${code}
+                \`\`\`
+                
+                Constraint: Be extremely CONCISE. 
+                - Limit to 2-3 sentences max.
+                - No "This code does..." or "Here is the explanation".
+                - Focus on the *logic* and *outcome*.
+            `;
+        }
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
