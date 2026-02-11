@@ -22,15 +22,35 @@
         </header>
 
         <main>
-            <div class="input-group">
-                <textarea id="codeInput"
-                    placeholder="Paste your code snippet OR a GitHub repository URL here..."></textarea>
-            </div>
+            <div class="split-container">
+                <!-- Section 1: Code Explanation -->
+                <section class="card">
+                    <div class="card-header">
+                        <h2>💻 Explain Code</h2>
+                    </div>
+                    <div class="input-group">
+                        <textarea id="codeInput" placeholder="Paste your code snippet here..."></textarea>
+                    </div>
+                    <button id="humanizeCodeBtn" class="action-btn">
+                        <span>Humanize Code</span>
+                        <span class="btn-glow"></span>
+                    </button>
+                </section>
 
-            <button id="humanizeBtn">
-                <span>Humanize Code</span>
-                <span class="btn-glow"></span>
-            </button>
+                <!-- Section 2: GitHub Repo Analysis -->
+                <section class="card">
+                    <div class="card-header">
+                        <h2>octocat Explain Repo</h2>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="repoInput" placeholder="https://github.com/username/repo">
+                    </div>
+                    <button id="analyzeRepoBtn" class="action-btn">
+                        <span>Analyze Repo</span>
+                        <span class="btn-glow"></span>
+                    </button>
+                </section>
+            </div>
 
             <div id="resultArea" class="hidden">
                 <div class="result-header">

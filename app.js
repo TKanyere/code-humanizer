@@ -1,35 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Buttons
+    const humanizeCodeBtn = document.getElementById('humanizeCodeBtn');
+    const analyzeRepoBtn = document.getElementById('analyzeRepoBtn');
+
+    // Inputs
     const codeInput = document.getElementById('codeInput');
-    const humanizeBtn = document.getElementById('humanizeBtn');
+    const repoInput = document.getElementById('repoInput');
+
+    // Results
     const resultArea = document.getElementById('resultArea');
     const explanationContent = document.getElementById('explanationContent');
     const copyBtn = document.getElementById('copyBtn');
 
-    humanizeBtn.addEventListener('click', async () => {
-        const code = codeInput.value.trim();
-        if (!code) {
-            alert('Please paste code or a GitHub URL!');
+    // Handler for Code Explanation
+    humanizeCodeBtn.addEventListener('click', () => handleHumanize('code'));
+
+    // Handler for Repo Analysis
+    analyzeRepoBtn.addEventListener('click', () => handleHumanize('repo'));
+
+    async function handleHumanize(type) {
+        const inputElement = type === 'code' ? codeInput : repoInput;
+        const button = type === 'code' ? humanizeCodeBtn : analyzeRepoBtn;
+        const content = inputElement.value.trim();
+
+        if (!content) {
+            alert(type === 'code' ? 'Please paste some code!' : 'Please enter a GitHub URL!');
             return;
         }
 
-        // UI Loading State
-        setLoading(true);
-        const isUrl = code.includes('github.com');
-        humanizeBtn.querySelector('span:first-child').textContent = isUrl ? 'Analyzing Repo...' : 'Analyzing Code...';
+        setLoading(true, button, type);
 
         try {
             const response = await fetch('/.netlify/functions/humanize', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ code }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type, content }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.details || data.error || 'Failed to humanize code');
+                throw new Error(data.details || data.error || 'Failed to process request');
             }
 
             // Render Markdown
@@ -37,14 +48,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Show Result
             resultArea.classList.remove('hidden');
-
-            // Smooth scroll to result
             resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
         } catch (error) {
             console.error('Error:', error);
-
-            // Show error in UI persistently
             resultArea.classList.remove('hidden');
             explanationContent.innerHTML = `
                 <div style="color: #f87171; background: rgba(127, 29, 29, 0.4); padding: 1rem; border-radius: 8px; border: 1px solid #f87171;">
@@ -53,13 +60,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
         } finally {
-            setLoading(false);
+            setLoading(false, button, type);
         }
-    });
+    }
 
-    // Copy to clipboard
+    // Copy to clipboard logic (unchanged)
     copyBtn.addEventListener('click', () => {
         const textToCopy = explanationContent.innerText;
         navigator.clipboard.writeText(textToCopy).then(() => {
@@ -73,15 +79,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    function setLoading(isLoading) {
+    function setLoading(isLoading, button, type) {
         if (isLoading) {
-            humanizeBtn.disabled = true;
-            humanizeBtn.querySelector('span:first-child').textContent = 'Analyzing...';
-            humanizeBtn.classList.add('loading');
+            button.disabled = true;
+            button.querySelector('span:first-child').textContent = type === 'repo' ? 'Scanning Repo...' : 'Analyzing...';
+            button.classList.add('loading');
         } else {
-            humanizeBtn.disabled = false;
-            humanizeBtn.querySelector('span:first-child').textContent = 'Humanize Code';
-            humanizeBtn.classList.remove('loading');
+            button.disabled = false;
+            button.querySelector('span:first-child').textContent = type === 'repo' ? 'Analyze Repo' : 'Humanize Code';
+            button.classList.remove('loading');
         }
     }
 });

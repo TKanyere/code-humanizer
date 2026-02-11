@@ -10,12 +10,12 @@ exports.handler = async function (event, context) {
     }
 
     try {
-        const { code, language } = JSON.parse(event.body);
+        const { type, content, language } = JSON.parse(event.body);
 
-        if (!code) {
+        if (!content) {
             return {
                 statusCode: 400,
-                body: JSON.stringify({ error: "Code snippet is required" }),
+                body: JSON.stringify({ error: "Content is required" }),
             };
         }
 
@@ -32,45 +32,81 @@ exports.handler = async function (event, context) {
 
         let prompt = "";
 
-        // Check if input is a GitHub URL
-        const githubRegex = /github\.com\/([^\/]+)\/([^\/]+)/;
-        const match = code.match(githubRegex);
+        if (type === 'repo' || content.match(/github\.com\/([^\/]+)\/([^\/]+)/)) {
+            // REPO MODE
+            const githubRegex = /github\.com\/([^\/]+)\/([^\/]+)/;
+            const match = content.match(githubRegex);
 
-        if (match) {
+            if (!match) {
+                return { statusCode: 400, body: JSON.stringify({ error: "Invalid GitHub URL" }) };
+            }
+
             const owner = match[1];
             const repo = match[2];
 
-            // Try to fetch README.md (common names)
-            const readmeUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/README.md`;
-            const readmeRes = await fetch(readmeUrl);
+            // 1. Fetch File Tree (Recursive)
+            const treeUrl = `https://api.github.com/repos/${owner}/${repo}/git/trees/main?recursive=1`;
+            const treeRes = await fetch(treeUrl);
 
-            let context = "";
-            if (readmeRes.ok) {
-                const readmeText = await readmeRes.text();
-                context = `Repository README Content:\n${readmeText.substring(0, 5000)}`; // limit context
+            let fileTree = [];
+            if (treeRes.ok) {
+                const treeData = await treeRes.json();
+                fileTree = treeData.tree.map(f => f.path);
             } else {
-                context = "Could not fetch README. Please analyze based on the repository name context.";
+                // Fallback for non-main branch or private/error
+                console.warn("Failed to fetch tree, falling back to README only");
+            }
+
+            // 2. Identify Key Files (Heuristic)
+            const keyFiles = [
+                'README.md',
+                'package.json', 'requirements.txt', 'Cargo.toml', 'go.mod', // Dependencies
+                'src/index.js', 'main.py', 'src/main.rs', 'app.js', 'index.html' // Entry points
+            ];
+
+            const foundKeyFiles = fileTree.filter(path => keyFiles.some(k => path.endsWith(k))).slice(0, 5); // Limit to 5 files
+
+            // Always try README if not found in tree (e.g. if tree fetch failed)
+            if (!foundKeyFiles.includes('README.md')) foundKeyFiles.unshift('README.md');
+
+            // 3. Fetch Content of Key Files
+            let context = `File Structure (Partial): \n${fileTree.slice(0, 20).join('\n')}\n...(${fileTree.length} files total)\n\n`;
+
+            for (const filePath of foundKeyFiles) {
+                const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/main/${filePath}`;
+                const res = await fetch(rawUrl);
+                if (res.ok) {
+                    const text = await res.text();
+                    context += `\n--- START FILE: ${filePath} ---\n${text.substring(0, 3000)}\n--- END FILE ---\n`;
+                }
             }
 
             prompt = `
-                You are a concise technical summarizer.
+                You are a senior software architect.
                 Analyze this GitHub repository: ${owner}/${repo}.
                 
-                context:
+                Context provided:
                 ${context}
 
-                Task: Provide a BRIEF, high-level summary of what this project does.
-                Constraint: Maximum 3 sentences. No conversational filler ("Here is the summary..."). Direct answer only.
+                Task: Provide a COMPREHENSIVE summary of this project.
+                Structure:
+                1. **What it does**: 1-2 sentences.
+                2. **Tech Stack**: Detected languages/frameworks.
+                3. **Key Features**: Bullet points based on code analysis.
+                4. **Architecture**: How the entry points connect (if visible).
+                
+                Constraint: Be concise but thorough. Focus on technical details, not marketing fluff.
             `;
+
         } else {
-            // Standard Code Explanation
+            // CODE MODE
             prompt = `
                 You are a senior developer doing a code review.
                 Explain this ${language ? language + " " : ""}code snippet.
                 
                 Code:
                 \`\`\`
-                ${code}
+                ${content}
                 \`\`\`
                 
                 Constraint: Match the length of the explanation to the COMPLEXITY of the code.
